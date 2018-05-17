@@ -9,6 +9,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
+from scipy.stats import entropy
+
 import datetime
 from dateutil.parser import parse
 import collections
@@ -51,6 +53,47 @@ def roundDownTime(row, timeWidth, col):
     d = parse(row[col])
     epoch_seconds = int(d.timestamp() // timeWidth)
     return datetime.datetime.fromtimestamp(epoch_seconds * timeWidth)
+
+
+#############################################
+# Processing
+#############################################
+
+def ent(data):
+    p_data= data.value_counts()/len(data) # calculates the probabilities
+    H=entropy(p_data)  # input probabilities to get the entropy 
+    return H
+
+def agg(df, features):
+    '''
+    returns list of entropies of supplied features
+    '''
+    return [ent(df[feature]) for feature in features]
+
+def aggGroups(dfGroups, timeWindow):
+    features = ['sa', 'da', 'sp', 'dp' , 'flg', 'byt']
+    data = [[timeBinToDate(l, timeWindow)] + agg(df, features) for l, df in dfGroups]
+    columns = ['time'] + ['H({})'.format(f) for f in features]
+    return pd.DataFrame(data, columns = columns)
+
+
+#############################################
+# Anomaly (labeled attacks)
+#############################################
+
+def timebinAnom(df, anoms):
+    # warning, first column of csv has to be changed to 'te' for convenience
+    df = addTimebin(df, timeWindow)
+    filteredCols = ['timebin'] + anoms
+    df = df[filteredCols]
+    df_agg = df.groupby('timebin').agg(sum)
+    df_agg['time'] = df_agg.apply(lambda row : timeBinToDate(row.name, timeWindow), axis = 1)
+    filteredCols = ['time'] + anoms
+    print(filteredCols)
+    df_agg = df_agg.reset_index()
+    df_agg = df_agg[filteredCols]
+    return df_agg
+
 
 #############################################
 # SAM/FIM
