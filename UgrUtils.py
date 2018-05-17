@@ -72,8 +72,8 @@ def agg(df, features):
 
 def aggGroups(dfGroups, timeWindow):
     features = ['sa', 'da', 'sp', 'dp' , 'flg', 'byt']
-    data = [[timeBinToDate(l, timeWindow)] + agg(df, features) for l, df in dfGroups]
-    columns = ['time'] + ['H({})'.format(f) for f in features]
+    data = [[timeBinToDate(l, timeWindow)] + agg(df, features) + [len(df), df['byt'].sum()] for l, df in dfGroups]
+    columns = ['time'] + ['H({})'.format(f) for f in features] + ['Flows', 'Bytes']
     return pd.DataFrame(data, columns = columns)
 
 

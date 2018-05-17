@@ -21,7 +21,8 @@ timeWindow = args['t']
 df = pd.read_csv(filename)
 df = utils.addTimebin(df, timeWindow)
 
+
 df_agg = utils.aggGroups(df.groupby('timebin'), timeWindow)
-df_agg.to_csv(outname)
+df_agg.to_csv(outname, index=False)
 
 print('[+] wrote to {}'.format(outname))
