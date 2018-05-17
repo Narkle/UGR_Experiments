@@ -25,8 +25,12 @@ import pickle
 # pandas 
 #############################################
 
-def createTimebin(row, timeWidth, col):
-    d = parse(row[col])
+def addTimebin(df, timeWidth, colName = 'te'):
+    df['timebin'] = df.apply(lambda row : timebinRow(row, timeWidth, colName), axis = 1)
+    return df
+
+def timebinRow(row, timeWidth, colName):
+    d = parse(row[colName])
     return int(d.timestamp() // timeWidth)
 
 def timeBin(df, width, col = 'te'):
@@ -42,11 +46,6 @@ def timeBinToDate(x, width):
     converts timebin back to date time (round down)
     """
     return datetime.datetime.fromtimestamp(x * width)
-
-def readAndGroupByTimebin(filename, width):
-    df = pd.read_csv(filename)
-    df = timeBin(df, width)
-    return df.groupby('timebin')
 
 def roundDownTime(row, timeWidth, col):
     d = parse(row[col])
