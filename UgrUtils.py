@@ -6,8 +6,8 @@ pandas
 """
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
+# import matplotlib.pyplot as plt
+# import matplotlib.dates as mdates
 
 from scipy.stats import entropy
 
@@ -19,9 +19,11 @@ import time
 import os
 import subprocess
 
-import graphviz as gv
+# import graphviz as gv
 import hashlib
 import pickle
+
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__)) # This is your Project Root
 
 #############################################
 # pandas 
@@ -77,6 +79,10 @@ def aggGroups(dfGroups, timeWindow):
     return pd.DataFrame(data, columns = columns)
 
 
+def aggGroupsByFIM(dfGroups, timeWindow, minSup):
+    d = {timeBinToDate(l, timeWindow) : FIM(df, minSup) for l, df in dfGroups}
+    return d
+
 #############################################
 # Anomaly (labeled attacks)
 #############################################
@@ -117,7 +123,8 @@ def invokeMaximalSAM(inputStr, minSup=1):
     inFile.close()
     
     # maximal FIM (-m)
-    subprocess.call(["./sam", '-m', '-m3', '-s' + str(minSup), inFileName, outFileName])
+    subprocess.call([ROOT_DIR + '/sam', '-m', '-m3', '-s' + str(minSup), inFileName, outFileName])
+    # subprocess.call(["./sam", '-m', '-m3', '-s' + str(minSup), inFileName, outFileName])
     lines = open(outFileName).readlines()
     
     result = {}
