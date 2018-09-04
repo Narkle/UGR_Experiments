@@ -116,8 +116,6 @@ def kl_divergence(P, Q):
     return entropy(P, Q)
     
 
-
-
 if __name__ == '__main__':
     readAndProcessCSV(filename)
     print('[+] Read %s rows' % totRows)
