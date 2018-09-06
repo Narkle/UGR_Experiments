@@ -14,14 +14,19 @@ cols = ["te", "td", "sa", "da",	"sp", "dp",	"pr", "flg", "fwd",	"stos", "pkt", "
 hist_cols = ['sa', 'da', 'sp', 'dp']
 
 nClones = 5
+minSup = 3000 # min number of flows
+
+# Components
 histogramVoter = HistogramVoter(w=15, m=10, k=nClones, l=6) 
 flowFilter = FlowFilter()
+ruleMining = RuleMining(minSup=minSup)
+
+chunksize = 100000
+
 windowLength = pd.Timedelta("15 minutes")
 output_col = ['time'] + ["%s_%s" % (col, i) for col in hist_cols for i in range(nClones)]
 output = []
 timestamps = []
-
-chunksize = 100000
 
 window_start = None
 window_end = None
