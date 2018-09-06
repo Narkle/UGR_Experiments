@@ -1,7 +1,3 @@
-"""
-output: csv
-start | sa_0_[bin#] .... | sa_1_[bin#] ....|
-"""
 import argparse
 import os
 
@@ -10,14 +6,16 @@ import numpy as np
 import datetime
 
 from voting import HistogramVoter
+from filter import FlowFilter
+from ruleMining import RuleMining
 
 # EXPERIMENT SETUP
-filename = '../datasets/2016-06-20_SMTP_100.csv'
 cols = ["te", "td", "sa", "da",	"sp", "dp",	"pr", "flg", "fwd",	"stos", "pkt", "byt", "type"]
 hist_cols = ['sa', 'da', 'sp', 'dp']
 
 nClones = 5
-histogramVoter = HistogramVoter(w=15, m=5, k=nClones, l=None) 
+histogramVoter = HistogramVoter(w=15, m=10, k=nClones, l=6) 
+flowFilter = FlowFilter()
 windowLength = pd.Timedelta("15 minutes")
 output_col = ['time'] + ["%s_%s" % (col, i) for col in hist_cols for i in range(nClones)]
 output = []
@@ -63,23 +61,22 @@ def readAndProcessCSV(filename):
 def process(window_start, df):
     global processedRows, histogramVoter, output, timestamps
     processedRows += df.shape[0]
-    # process_window_df(df, window_start)
+
     print('[+] Processing window %s with %s rows' % (window_start, df.shape[0]))
-    ret = histogramVoter.process_window(df)
+
+    kl_row, meta_data = histogramVoter.process_window(df)
+    df_filtered = flowFilter.filter(df, meta_data)
+    item_sets = ruleMining.mine(df)
+
     if ret:
-        output.append([window_start] + ret)
+        print(ret)
     
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('f', help='ugr netflow csv', type=str)
-    parser.add_argument('o', help='output csv', type=str)
     args = parser.parse_args()
     filename = args.f
-    outfilename = args.o
     readAndProcessCSV(filename)
     print('[+] Read %s rows' % totRows)
     print('[+] Processed %s rows' % processedRows)
-    # output file as csv
-    df = pd.DataFrame(data=output, columns=output_col)
-    df.to_csv(outfilename)

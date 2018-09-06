@@ -5,7 +5,7 @@ from scipy.stats import entropy
 
 from hashing import HashFunction
 
-THRESHOLD = 0.5 # some random number, definitely wrong
+THRESHOLD = 0.75
 
 class HistogramVoter:
 
@@ -20,6 +20,8 @@ class HistogramVoter:
             m {int} -- hash function length (2 ** m)
             k {int} -- number of clones 
             l {int} -- voting parameter
+        Returns:
+            [dict] -- feature -> list of feature values
         """
         
         self.w = w
@@ -32,11 +34,15 @@ class HistogramVoter:
         
         self.first_flag = True
 
+
     def process_window(self, df):
         """process window and return meta data of filters
         
         Arguments:
             df {dataframe} -- dataframe of flows for a time window
+        
+        Returns:
+            [tuple] -- (kl_row, meta_data)
         """
         curr_hist_dists = {col:[
             [0 for i in range(2 ** self.m)] for j in range(self.k)]
@@ -53,42 +59,63 @@ class HistogramVoter:
                     b = hasher.hash(val)
                     hist_dist[b] += 1
 
-        # ignore voting for now
-        # if self.prev_hist_dists:
-        #     meta_data = self.vote(self.prev_hist_dists, curr_hist_dists)
-        
-        # prev_hist_dists = curr_hist_dists
-
-        # return meta_data
-
-        # for now return row of kl values for each histogram
-        if self.first_flag:
-            self.first_flag = False
-            ret_val = None
+        if not self.first_flag:
+            meta_data = self.vote(self.prev_hist_dists, curr_hist_dists)
         else:
-            ret_val = self.bulk_hist_dist_kl(self.prev_hist_dists, curr_hist_dists)
-
+            self.first_flag = False
+            meta_data = None
+        
         self.prev_hist_dists = curr_hist_dists
-        return ret_val
-    
-    def bulk_hist_dist_kl(self, prev_hist_dists, curr_hist_dists):
-        row = []
+
+        return meta_data
+
+
+    def vote(self, prev_hist_dists, curr_hist_dists):
+        """return meta data from voting
+        
+        Arguments:
+            prev_hist_dists {dict} -- [description]
+            curr_hist_dists {dict} -- [description]
+
+        Returns:
+            [dict] -- [feature to list of feature values]
+        """
+        meta_data = {}
         for col in self.hist_cols:
-            prev_feat_hist = prev_hist_dists[col]
-            curr_feat_hist = curr_hist_dists[col]
-            for prev, curr in zip(prev_feat_hist, curr_feat_hist):
-                row.append(entropy(
-                    [x if x else 1 for x in prev], 
-                    [x if x else 1 for x in curr]))
-        return row
+            prev_hists = prev_hist_dists[col]
+            curr_hists = curr_hist_dists[col]
+            meta_data[col] = self.vote_feature(prev_hists, curr_hists, col, THRESHOLD)
+
+        return meta_data
+
 
     def vote_feature(self, prev_hists, curr_hists, feature, threshold):
-        meta_data = set()
+        """get suspicious feature values by voting on histogram clones
+        
+        Arguments:
+            prev_hists {list of list of Number} -- list of distributions
+            curr_hists {list of list of Number} -- list of distributions
+            feature {string} -- hist column name
+            threshold {float} -- threshold to trigger value extraction
+        
+        Returns:
+            [list] -- [feature values]
+        """
+
+        cand_feature_values = {}
         for prev, curr, hasher in zip(prev_hists, curr_hists, self.feat_hashers[feature]):
-            values = vote_feature_clone(prev, curr, hasher, threshold)
-            meta_data.update(values)
-        return list(meta_data)
+            values = self.vote_feature_clone(prev, curr, hasher, threshold)
+            if values is None:
+                continue
+            for v in values:
+                if v not in cand_feature_values:
+                    cand_feature_values[v] = 1
+                else:
+                    cand_feature_values[v] += 1
+                
+        return [k for k, v in cand_feature_values.items() if v >= self.l]
     
+
     def vote_feature_clone(self, prev_hist, curr_hist, hasher, threshold):
         """return candidate feature values
         
@@ -105,15 +132,18 @@ class HistogramVoter:
         kl = entropy(prev_hist, curr_hist)
         if kl < threshold:
             return None
-        cand_bins = sorted([i for i in range(len(hasher.nBins))], key=lambda i: abs(prev_hist[i]-curr_hist[i]), reversed=True)
+        cand_bins = sorted([i for i in range(hasher.nBins)], 
+            key=lambda i: abs(prev_hist[i]-curr_hist[i]), reverse=True)
         curr_idx = 0
         while kl > threshold:
             bin_to_reset = cand_bins[curr_idx]
             curr_hist[bin_to_reset] = prev_hist[bin_to_reset]
             curr_idx += 1
+            kl = entropy(prev_hist, curr_hist)
         values = []
         for b in cand_bins[:curr_idx]:
-            values.append(hasher.mapping[b])
+            for v in hasher.mapping[b]:
+                values.append(v)
         return values
 
         
