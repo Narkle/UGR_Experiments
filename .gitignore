@@ -5,3 +5,5 @@ dataset
 /datasets/
 /images/
 *.pyc
+/old experiments/
+/experiment 1/
