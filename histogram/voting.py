@@ -9,7 +9,6 @@ THRESHOLD = 0.5 # some random number, definitely wrong
 
 class HistogramVoter:
 
-    chunksize = 100000
     hist_cols = ['sa', 'da', 'sp', 'dp']
     prev_hist_dists = {col:None for col in hist_cols}
 
@@ -30,6 +29,8 @@ class HistogramVoter:
 
         self.feat_hashers = {col: [HashFunction(seed=i) for i in range(self.k)]
             for col in self.hist_cols}
+        
+        self.first_flag = True
 
     def process_window(self, df):
         """process window and return meta data of filters
@@ -37,9 +38,10 @@ class HistogramVoter:
         Arguments:
             df {dataframe} -- dataframe of flows for a time window
         """
-        curr_hist_dists = {col:[{
-            i:0 for i in range(2 ** self.m)
-        } for _ in range(self.k)] for col in self.hist_cols}
+        curr_hist_dists = {col:[
+            [0 for i in range(2 ** self.m)] for j in range(self.k)]
+            for col in self.hist_cols
+        }
 
         for _, row in df.iterrows():
             for col in self.hist_cols:
@@ -51,16 +53,38 @@ class HistogramVoter:
                     b = hasher.hash(val)
                     hist_dist[b] += 1
 
-        if self.prev_hist_dists:
-            meta_data = self.vote(self.prev_hist_dists, curr_hist_dists)
+        # ignore voting for now
+        # if self.prev_hist_dists:
+        #     meta_data = self.vote(self.prev_hist_dists, curr_hist_dists)
         
-        prev_hist_dists = curr_hist_dists
+        # prev_hist_dists = curr_hist_dists
 
-        return meta_data
+        # return meta_data
+
+        # for now return row of kl values for each histogram
+        if self.first_flag:
+            self.first_flag = False
+            ret_val = None
+        else:
+            ret_val = self.bulk_hist_dist_kl(self.prev_hist_dists, curr_hist_dists)
+
+        self.prev_hist_dists = curr_hist_dists
+        return ret_val
+    
+    def bulk_hist_dist_kl(self, prev_hist_dists, curr_hist_dists):
+        row = []
+        for col in self.hist_cols:
+            prev_feat_hist = prev_hist_dists[col]
+            curr_feat_hist = curr_hist_dists[col]
+            for prev, curr in zip(prev_feat_hist, curr_feat_hist):
+                row.append(entropy(
+                    [x if x else 1 for x in prev], 
+                    [x if x else 1 for x in curr]))
+        return row
 
     def vote_feature(self, prev_hists, curr_hists, feature, threshold):
         meta_data = set()
-        for prev, curr, hasher in zip(prev_hists, curr_hists, self.feat_hashers[feature])
+        for prev, curr, hasher in zip(prev_hists, curr_hists, self.feat_hashers[feature]):
             values = vote_feature_clone(prev, curr, hasher, threshold)
             meta_data.update(values)
         return list(meta_data)

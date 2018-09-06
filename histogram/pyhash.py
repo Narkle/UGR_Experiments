@@ -17,6 +17,9 @@ def fnv1_32(string, seed=0):
     FNV_prime = 16777619
     offset_basis = 2166136261
 
+    if not isinstance(string, str):
+        string = str(string)
+
     # FNV-1a Hash Function
     hash = offset_basis + seed
     for char in string:

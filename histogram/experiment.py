@@ -1,3 +1,9 @@
+"""
+Phase 1: run multiple histogram clones on source ip
+output: csv
+start | sa_0_[bin#] .... | sa_1_[bin#] ....|
+"""
+
 import pandas as pd
 import numpy as np
 import datetime
