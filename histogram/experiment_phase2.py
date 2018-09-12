@@ -1,3 +1,11 @@
+"""Anomaly Extraction in Netflow using Association Rules
+Input: netflow as csv
+Output: Folder containing
+    - item sets for time windows when kl divergence exceeds threshold
+    - filtered flows
+
+"""
+
 import argparse
 import os
 
@@ -12,12 +20,13 @@ from ruleMining import RuleMining
 # EXPERIMENT SETUP
 cols = ["te", "td", "sa", "da",	"sp", "dp",	"pr", "flg", "fwd",	"stos", "pkt", "byt", "type"]
 hist_cols = ['sa', 'da', 'sp', 'dp']
+fim_cols = ['sa', 'da', 'sp', 'dp', 'np', 'nb', 'sup']
 
 nClones = 5
 minSup = 3000 # min number of flows
 
 # Components
-histogramVoter = HistogramVoter(w=15, m=10, k=nClones, l=6) 
+histogramVoter = HistogramVoter(w=15, m=2, k=nClones, l=2) 
 flowFilter = FlowFilter()
 ruleMining = RuleMining(minSup=minSup)
 
@@ -69,12 +78,13 @@ def process(window_start, df):
 
     print('[+] Processing window %s with %s rows' % (window_start, df.shape[0]))
 
-    kl_row, meta_data = histogramVoter.process_window(df)
-    df_filtered = flowFilter.filter(df, meta_data)
-    item_sets = ruleMining.mine(df)
+    alarm, meta_data = histogramVoter.process_window(df)
 
-    if ret:
-        print(ret)
+    if alarm:
+        print('\t[-] Alarm raised')
+        df_filtered = flowFilter.filter(df, meta_data)
+        item_sets = ruleMining.mine(df_filtered)
+        print(item_sets)
     
 
 if __name__ == '__main__':

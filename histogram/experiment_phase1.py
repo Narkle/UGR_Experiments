@@ -70,6 +70,9 @@ def process(window_start, df):
         output.append([window_start] + ret)
     
 
+def run(filename, outfilename):
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('f', help='ugr netflow csv', type=str)

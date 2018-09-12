@@ -14,8 +14,10 @@ class FlowFilter:
             df {dataframe} -- flow dataframe for the time window
             meta_data {[type]} -- dict: feature: list of values
         """
+        print(df.head()) 
+        print(meta_data)
         def f(row):
             return any([row[k] in vals for k, vals in meta_data.items()])
-        df[df.apply(lambda x: x['b'] > x['c'], axis=1)]
+        df[df.apply(lambda x: f(x), axis=1)]
         return df[df.apply(f)]
         
