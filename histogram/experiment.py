@@ -1,9 +1,6 @@
 """Anomaly Extraction in Netflow using Association Rules
 Input: netflow as csv
-Output: Folder containing
-    - item sets for time windows when kl divergence exceeds threshold
-    - filtered flows
-
+Output: kl divergence across of all histogram types
 """
 
 import argparse
@@ -22,11 +19,11 @@ cols = ["te", "td", "sa", "da",	"sp", "dp",	"pr", "flg", "fwd",	"stos", "pkt", "
 hist_cols = ['sa', 'da', 'sp', 'dp']
 fim_cols = ['sa', 'da', 'sp', 'dp', 'np', 'nb', 'sup']
 
-nClones = 5
+nClones = 10
 minSup = 3000 # min number of flows
 
 # Components
-histogramVoter = HistogramVoter(w=15, m=2, k=nClones, l=2) 
+histogramVoter = HistogramVoter(w=15, m=5, k=nClones, l=5) 
 flowFilter = FlowFilter()
 ruleMining = RuleMining(minSup=minSup)
 
@@ -40,6 +37,11 @@ timestamps = []
 window_start = None
 window_end = None
 df_window = pd.DataFrame(columns=cols)
+
+
+# for kl logging
+kl_log_cols = ["%s_%s" % (col, i) for col in hist_cols for i in range(nClones)]
+df_kl_log = pd.DataFrame(columns=kl_log_cols)
 
 totRows = 0
 processedRows = 0
@@ -73,25 +75,36 @@ def readAndProcessCSV(filename):
 
 
 def process(window_start, df):
-    global processedRows, histogramVoter, output, timestamps
+    global processedRows, histogramVoter, output, timestamps, df_kl_log
     processedRows += df.shape[0]
 
     print('[+] Processing window %s with %s rows' % (window_start, df.shape[0]))
 
-    alarm, meta_data = histogramVoter.process_window(df)
+    alarm, meta_data, df_kl_log = histogramVoter.process_window(df, df_kl_log)
+    timestamps.append(window_start)
 
-    if alarm:
-        print('\t[-] Alarm raised')
-        df_filtered = flowFilter.filter(df, meta_data)
-        item_sets = ruleMining.mine(df_filtered)
-        print(item_sets)
+    # ignore alarm handling for now
+    # if alarm:
+    #     print('\t[-] Alarm raised')
+    #     df_filtered = flowFilter.filter(df, meta_data)
+    #     item_sets = ruleMining.mine(df_filtered)
+    #     print(item_sets)
     
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('f', help='ugr netflow csv', type=str)
+    parser.add_argument('--o', help='kl output file', type=str)
+
     args = parser.parse_args()
     filename = args.f
+    outfile = args.o
+
     readAndProcessCSV(filename)
+
     print('[+] Read %s rows' % totRows)
     print('[+] Processed %s rows' % processedRows)
+
+    if outfile:
+        df_kl_log.to_csv(outfile)
+        print('[+] wrote to %s' % outfile)

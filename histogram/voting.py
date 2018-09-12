@@ -13,6 +13,7 @@ class HistogramVoter:
     prev_hist_dists = {col:None for col in hist_cols}
     prev_kls = {col:None for col in hist_cols}
 
+
     def __init__(self, w, m, k, l):
         """init HistogramVoter class
         
@@ -35,12 +36,16 @@ class HistogramVoter:
         
         self.first_flag = True
 
+        # logging kls
+        self.kl_log_cols = ["%s_%s" % (col, i) for col in self.hist_cols for i in range(k)]
 
-    def process_window(self, df):
+
+    def process_window(self, df, df_kls=None):
         """process window and return meta data of filters
         
         Arguments:
             df {dataframe} -- dataframe of flows for a time window
+            df_kls {dataframe} -- optional dataframe to log kls
         
         Returns:
             [tuple] -- (kl_row, meta_data)
@@ -61,30 +66,44 @@ class HistogramVoter:
                     hist_dist[b] += 1
 
         if not self.first_flag:
-            alarm, meta_data = self.vote(curr_hist_dists)
+            alarm, meta_data, df_kls = self.vote(curr_hist_dists, df_kls)
         else:
             self.first_flag = False
             alarm, meta_data = None, None
         
         self.prev_hist_dists = curr_hist_dists
 
-        return alarm, meta_data
+        return alarm, meta_data, df_kls
 
 
-    def vote(self, curr_hist_dists):
+    def vote(self, curr_hist_dists, df_kls=None):
         """return meta data from voting
         
         Arguments:
             curr_hist_dists {dict} -- [description]
+            df_kls {dataframe} -- pandas dataframe containing past kls
 
         Returns:
-            [dict] -- [feature to list of feature values]
+            [bool] -- whether an alarm was raised
+            [dict] -- feature to list of feature values
         """
         meta_data = {}
         alarm_raised = False
         curr_kls = self.bulk_hist_dist_kl(curr_hist_dists)
+
+
+        # add kls to df_kls
+        if df_kls is not None:
+            next_row = {}
+            for col in self.hist_cols:
+                kls = curr_kls[col]
+                for idx, kl in enumerate(kls):
+                    next_row["%s_%s" % (col, idx)] = kl
+            # print(next_row)
+            df_kls = df_kls.append(next_row, ignore_index=True)
+
         # print(curr_kls)
-        print("\t".join(["%s: %04f" % (col, sum(v)/len(v)) for col, v in curr_kls.items()]))
+        # print("\t".join(["%s: %04f" % (col, sum(v)/len(v)) for col, v in curr_kls.items()]))
         # print(["%s" % col for col, v in curr_kls].join("\t"))
 
         for col in self.hist_cols:
@@ -96,7 +115,7 @@ class HistogramVoter:
 
         self.prev_kls = curr_kls        
 
-        return alarm_raised, meta_data
+        return alarm_raised, meta_data, df_kls
 
     
     def vote_feature(self, feature, curr_hists, threshold):
