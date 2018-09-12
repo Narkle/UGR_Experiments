@@ -1,33 +1,45 @@
+"""Anomaly Extraction in Netflow using Association Rules
+Input: netflow as csv
+Output: Folder containing
+    - item sets for time windows when kl divergence exceeds threshold
+    - filtered flows
+
 """
-Phase 1: run multiple histogram clones on source ip
-output: csv
-start | sa_0_[bin#] .... | sa_1_[bin#] ....|
-"""
+
+import argparse
+import os
 
 import pandas as pd
 import numpy as np
 import datetime
-from scipy.stats import entropy
 
-from hashing import HashFunction
+from voting import HistogramVoter
+from filter import FlowFilter
+from ruleMining import RuleMining
 
 # EXPERIMENT SETUP
-filename = '../datasets/2016-06-20_SMTP_100.csv'
 cols = ["te", "td", "sa", "da",	"sp", "dp",	"pr", "flg", "fwd",	"stos", "pkt", "byt", "type"]
+hist_cols = ['sa', 'da', 'sp', 'dp']
+fim_cols = ['sa', 'da', 'sp', 'dp', 'np', 'nb', 'sup']
 
-# EXPERIMENT VARIABLES
-windowLength = pd.Timedelta("15 minutes")
+nClones = 5
+minSup = 3000 # min number of flows
 
-# PROGRAM VARIABLES
+# Components
+histogramVoter = HistogramVoter(w=15, m=2, k=nClones, l=2) 
+flowFilter = FlowFilter()
+ruleMining = RuleMining(minSup=minSup)
+
 chunksize = 100000
-SA_hashers = [HashFunction(seed=i) for i in range(5)]
+
+windowLength = pd.Timedelta("15 minutes")
+output_col = ['time'] + ["%s_%s" % (col, i) for col in hist_cols for i in range(nClones)]
 output = []
+timestamps = []
 
 window_start = None
 window_end = None
 df_window = pd.DataFrame(columns=cols)
-
-prev_sa_hist_dist = None
 
 totRows = 0
 processedRows = 0
@@ -61,69 +73,25 @@ def readAndProcessCSV(filename):
 
 
 def process(window_start, df):
-    global processedRows
+    global processedRows, histogramVoter, output, timestamps
     processedRows += df.shape[0]
-    process_window_df(df, window_start)
-    # print('[+] Processing window %s with %s rows' % (window_start, df.shape[0]))
 
+    print('[+] Processing window %s with %s rows' % (window_start, df.shape[0]))
 
-def process_window_df(df, window_start):
-    global prev_sa_hist_dist
-    curr_sa_hist_dist = sa_hist_dist(df)
-    if prev_sa_hist_dist:
-        kls = [kl_divergence(curr_dist, prev_dist) for curr_dist, prev_dist in zip(curr_sa_hist_dist, prev_sa_hist_dist)]
-        print("[+] %s KL Divergance for sa: %s" % (window_start, kls))
-    prev_sa_hist_dist = curr_sa_hist_dist
+    alarm, meta_data = histogramVoter.process_window(df)
 
-
-def sa_hist_dist(df):
-    """distribution for each sa hashing function
-    
-    Arguments:
-        df {dataframe} -- dataframe of the time window
-    
-    Returns:
-        list -- list of list of distribution (of size nBins)
-    """
-    global SA_hashers
-    hists = [{} for _ in range(len(SA_hashers))]
-    for _, row in df.iterrows():
-        sa = row['sa']
-        for i, hasher in enumerate(SA_hashers):
-            hist = hists[i]
-            val = hasher.hash(sa)
-            if val not in hist:
-                hist[val] = 1
-            else:
-                hist[val] += 1
-    nBins = [hasher.nBins for hasher in SA_hashers]
-    return [[hist.get(b, 0) for b in range(bins)] for hist, bins in zip(hists, nBins)]
-
-########################################################
-# Stats Utility Functions
-########################################################
-
-def kl_divergence(P, Q):
-    """compute kl divergance between prob dist P and Q
-    
-    Arguments:
-        P {list} -- list of occurrance of each type
-        Q {list} -- list of occurrance of each type
-    """
-
-    '''
-    For prototyping only, set the occurance of each bin to 1 so get around KL
-    being inf, should not be a problem when there is no sampling due to large
-    input size
-    '''
-    P = [p if p else 1 for p in P]
-    Q = [q if q else 1 for q in Q]
-
-    return entropy(P, Q)
+    if alarm:
+        print('\t[-] Alarm raised')
+        df_filtered = flowFilter.filter(df, meta_data)
+        item_sets = ruleMining.mine(df_filtered)
+        print(item_sets)
     
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('f', help='ugr netflow csv', type=str)
+    args = parser.parse_args()
+    filename = args.f
     readAndProcessCSV(filename)
     print('[+] Read %s rows' % totRows)
     print('[+] Processed %s rows' % processedRows)
-
