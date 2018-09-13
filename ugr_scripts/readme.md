@@ -32,3 +32,24 @@ te	                td	    sa	            da	            sp	    dp	    pr	flg	   
 2016-06-20 00:07:30	1.024	42.219.158.179	56.10.179.181	25	    61138	TCP	.AP.SF	0	0	    8	657	    background
 ...
 ```
+
+Download UGR data and extract it
+```sh
+wget -bqc https://nesg.ugr.es/nesg-ugr16/download/normal/april/week2/april_week2_csv.tar.gz --no-check-certificate
+wget -bqc https://nesg.ugr.es/nesg-ugr16/download/attack/august/week1/august_week1_csv.tar.gz --no-check-certificate
+
+cd /mnt/local
+nohup tar -xzvf april_week2_csv.tar.gz -C /mnt/local > nohup.unzip.april &
+nohup tar -xzvf august_week1_csv.tar.gz -C /mnt/local > nohup.unzip.august &
+
+# note that april comes with blacklist filtered so should do the same for august
+cd ~/Desktop/ugr_scripts
+python remove_blacklists.py /mnt/local/august.week1.csv /mnt/local/august.week1.csv.removeblacklists
+rm august.week1.csv
+mv august.week1.csv.removeblacklists august.week1.csv
+
+# split csv up by day
+cp split_by_day.py /mnt/local/
+nohup python -u split_by_day.py april.week2.csv > nohup.split.april &
+nohup python -u split_by_day.py august.week2.csv > nohup.split.august &
+```

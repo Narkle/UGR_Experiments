@@ -40,7 +40,7 @@ class HistogramVoter:
         self.kl_log_cols = ["%s_%s" % (col, i) for col in self.hist_cols for i in range(k)]
 
 
-    def process_window(self, df, df_kls=None):
+    def process_window(self, df, df_kls=None, thresholds=None):
         """process window and return meta data of filters
         
         Arguments:
@@ -66,7 +66,7 @@ class HistogramVoter:
                     hist_dist[b] += 1
 
         if not self.first_flag:
-            alarm, meta_data, df_kls = self.vote(curr_hist_dists, df_kls)
+            alarm, meta_data, df_kls = self.vote(curr_hist_dists, df_kls, thresholds)
         else:
             self.first_flag = False
             alarm, meta_data = None, None
@@ -76,7 +76,7 @@ class HistogramVoter:
         return alarm, meta_data, df_kls
 
 
-    def vote(self, curr_hist_dists, df_kls=None):
+    def vote(self, curr_hist_dists, df_kls=None, thresholds=None):
         """return meta data from voting
         
         Arguments:
@@ -108,7 +108,7 @@ class HistogramVoter:
 
         for col in self.hist_cols:
             curr_hists = curr_hist_dists[col]
-            feature_values = self.vote_feature(col, curr_hists, THRESHOLD)
+            feature_values = self.vote_feature(col, curr_hists, thresholds[col] if thresholds else THRESHOLD)
             if feature_values:
                 alarm_raised = True
             meta_data[col] = feature_values

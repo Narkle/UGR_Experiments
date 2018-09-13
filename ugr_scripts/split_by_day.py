@@ -2,7 +2,7 @@
 """
 splits ugr netflow csv dump by day
 Usage
-./split_by_day [csv file]
+./split_by_day [csv file] --D [output directory]
 
 Notes:
 
