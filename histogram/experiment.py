@@ -23,10 +23,10 @@ nClones = 10
 minSup = 3000 # min number of flows
 
 thresholds = {
-    "sa": 0.006,
-    "da": 0.005,
-    "sp": 0.002,
-    "dp": 0.0025
+    'sa': 0.044106053856055275,
+    'da': 0.025166916753972035,
+    'sp': 0.03336464056782422,
+    'dp': 0.008534485706968107
 }
 
 # Components
@@ -100,7 +100,7 @@ def process(window_start, df, thresholds):
         filter_filename = '%s.filtered.csv' % window_start
         fullname = os.path.join(outdir, filter_filename)
         df_filtered.to_csv(fullname)
-        print('\t[-] Filtered netflow saved to %s' % fullname)
+        print('\t[-] Filtered %s flows out of %s. Saved to %s' % (df_filtered.shape[0], df.shape[0], fullname))
         # not implemented yet
         # item_sets = ruleMining.mine(df_filtered)
         # print(item_sets)
