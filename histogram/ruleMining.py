@@ -1,54 +1,40 @@
 """
-documentation for SAM: http://www.borgelt.net/sam.html
+PyFIM (apriori)
 """
 
-import os
-import subprocess
+from fim import apriori
 
-ROOT_DIR = os.path.dirname(os.path.abspath(__file__)) # This is your Project Root
+_features = ['sa', 'da', 'sp', 'dp', 'flg', 'type']
 
 class RuleMining:
+    """Extracts association rules from filtered flows, wrapper class to pyFIM
+    """
 
-    def __init__(self, minSup):
+    def __init__(self):
         """
         Arguments:
-            minSup {number} -- minimum number of flows
+            minSup {number} -- min support (percentage (%) or count)
+        Keyword Arguments:
+            isCount {bool} -- True if absolute number, percentage if False (default: {False})
         """
-        self.minSup = minSup
 
 
-    def translatetoSAMinput(self, df, features = ['sa', 'da', 'sp', 'dp']):
-        lines = []
-        for _, row in df.iterrows():
-            line = " ".join(["{0}:{1}".format(f, row[f]) for f in features])
-            lines.append(line)
-        return "\n".join(lines)
+    def netflow_to_transc(self, df, features=_features):
+        return [["{0},{1}".format(f, row[f]) for f in features] for _, row in df.iterrows()]
 
 
-    def invokeMaximalSAM(self, inputStr, minSup=1):
-        inFileName = 'temp_binning.in'
-        outFileName = 'temp_binning.out'
+    def mine(self, df, supp, zmin, zmax, is_count=False):
+        """return association rules from netflow df
         
-        inFile = open(inFileName, 'w+')
-        inFile.write(inputStr)
-        inFile.close()
+        Arguments:
+            df {dataframe} -- netflow dataframe
+            supp {number} -- [description]
+            zmin {number} -- minimum number in itemset
+            zmax {number} -- max number in itemset
         
-        subprocess.call([ROOT_DIR + '/sam', '-m', '-m3', '-S' + str(minSup), inFileName, outFileName])
-        lines = open(outFileName).readlines()
-        
-        result = {}
-        for line in lines:
-            *itemset, supp = line.split()
-            supp = float(supp[1:-1])
-            result[tuple(sorted(itemset))] = supp
-        
-        os.remove(inFileName)
-        os.remove(outFileName)
-        
-        return result
-
-
-    def FIM(self, df):
-        samInput = self.translatetoSAMinput(df)
-        samOutput = self.invokeMaximalSAM(samInput, self.minSup)
-        return samOutput
+        Keyword Arguments:
+            is_count {bool} -- true if minsup is absolute number, else percentage (default: {False})
+        """
+        transacts = self.netflow_to_transc(df)
+        supp = -supp if is_count else supp # (positive: percentage, negative: absolute number)
+        return apriori(transacts, target='m', supp=supp, zmin=zmin, zmax=zmax)

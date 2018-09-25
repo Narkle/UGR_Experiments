@@ -9,7 +9,7 @@ THRESHOLD = 0.025
 
 class HistogramVoter:
 
-    hist_cols = ['sa', 'da', 'sp', 'dp']
+    hist_cols = ['sa', 'da', 'sp', 'dp', 'pkt']
     prev_hist_dists = {col:None for col in hist_cols}
     prev_kls = {col:None for col in hist_cols}
 
@@ -31,7 +31,7 @@ class HistogramVoter:
         self.k = k
         self.l = l
 
-        self.feat_hashers = {col: [HashFunction(seed=i, length=m) for i in range(self.k)]
+        self.feat_hashers = {col: [HashFunction(seed=i, length=m) for i in range(self.k)] 
             for col in self.hist_cols}
         
         self.first_flag = True
@@ -179,6 +179,7 @@ class HistogramVoter:
             [dict/list] -- if dict: col to list of kls values, else flattened list of kls
         """
 
+
         row = []
         kls = {col:[] for col in self.hist_cols}
         for col in self.hist_cols:
@@ -194,3 +195,37 @@ class HistogramVoter:
                         [x if x else 1 for x in prev],
                         [x if x else 1 for x in curr]))
         return row if row_mode else kls
+
+
+    def hist_kl(self, df):
+        """returns row for df_kl
+        
+        Arguments:
+            df {dataframe} -- netflow dataframe
+            start {datetime} -- start of time window
+        """
+
+        curr_hist_dists = {col:[
+            [0 for i in range(2 ** self.m)] for j in range(self.k)]
+            for col in self.hist_cols
+        }
+
+        for _, row in df.iterrows():
+            for col in self.hist_cols:
+                val = row[col]
+                hashers = self.feat_hashers[col]
+                hist_dists = curr_hist_dists[col]
+
+                for hasher, hist_dist in zip(hashers, hist_dists):
+                    b = hasher.hash(val)
+                    hist_dist[b] += 1
+
+        if not self.first_flag:
+            curr_kls = self.bulk_hist_dist_kl(curr_hist_dists, row_mode=True)
+        else:
+            self.first_flag = False
+            curr_kls = None
+
+        self.prev_hist_dists = curr_hist_dists
+
+        return curr_kls
