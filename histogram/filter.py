@@ -12,7 +12,7 @@ class FlowFilter:
         
         Arguments:
             df {dataframe} -- flow dataframe for the time window
-            meta_data {[type]} -- dict: feature: list of values
+            meta_data {[type]} -- dict: feature: set of values
         """
         def f(row):
             return any([row[k] in vals for k, vals in meta_data.items() if vals])

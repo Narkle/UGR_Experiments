@@ -111,7 +111,7 @@ class HistogramVoter:
             feature_values = self.vote_feature(col, curr_hists, thresholds[col] if thresholds else THRESHOLD)
             if feature_values:
                 alarm_raised = True
-            meta_data[col] = feature_values
+            meta_data[col] = set(feature_values)
 
         self.prev_kls = curr_kls        
 
