@@ -33,32 +33,27 @@ def process(window_start, df):
     if row:
         output.append([window_start] + row)
 
-def readAndProcessCSV(filename):
-    global totRows, processedRows, voting, window_start, df_window
+
+def readAndProcessCSV(filename, w=15):
+    global totRows, processedRows
+
+    df_curr, curr_window = None, None
     for df in pd.read_csv(filename, chunksize=10**8, iterator=True):
+        df['te'] = pd.to_datetime(df['te']).dt.floor("%dT" % w)
         totRows += df.shape[0]
-
-        df.columns = cols
-        df['te'] = pd.to_datetime(df['te'])
-        if window_start is None:
-            t = df.loc[0]['te']
-            window_start = datetime.datetime(t.year, t.month, t.day)
-            window_end = window_start + windowLength
-        df_curr_window = df[(window_start <= df['te']) & (df['te'] < window_end)]
-        df_next = df[window_end <= df['te']]
-        if df_curr_window.shape[0] == 0:
-            break
-        while df_next.shape[0]:
-            df_window = df_window.append(df_curr_window)
-            process(window_start, df_window)
-            df_window = pd.DataFrame(columns=cols)
-            window_start, window_end = window_end, window_end + windowLength
-
-            df_curr_window = df[(window_start <= df['te']) & (df['te'] < window_end)]
-            df_next = df[window_end <= df['te']]
-
-        df_window = df_window.append(df_curr_window)
-    process(window_start, df_window)
+        grouped = df.groupby(['te'])
+        for window, df in grouped:
+            if df_curr is None:
+                df_curr = df
+                curr_window = window
+                continue
+            if window == curr_window:
+                df_curr = df_curr.append(df)
+                print("[+] Appended")
+            else:
+                process(curr_window, df_curr)
+                df_curr, curr_window = df, window
+    process(curr_window, df_curr)
 
 
 def outfilename(filepath):
@@ -73,6 +68,7 @@ if __name__ == '__main__':
     parser.add_argument('f', help='netflow csv file', type=str)
     parser.add_argument('k', help='number of clones', type=int)
     parser.add_argument('m', help='hash function length (2**m)', type=int)
+    parser.add_argument('--D', help='directory to save the output', type=str)
 
     args = parser.parse_args()
     filename = args.f
@@ -87,6 +83,8 @@ if __name__ == '__main__':
     print('[+] Read %s rows' % totRows)
 
     outfile = outfilename(filename)
+    if args.D:
+        outfile = args.D + outfile
     print('[+] Writing to %s' % outfile)
 
     df_kl = pd.DataFrame(data=output, columns=output_col)
