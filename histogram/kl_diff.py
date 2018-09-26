@@ -25,7 +25,6 @@ window_end = None
 df_window = pd.DataFrame(columns=cols)
 
 totRows = 0
-processedRows = 0
 
 
 def process(window_start, df):
@@ -86,7 +85,6 @@ if __name__ == '__main__':
     readAndProcessCSV(filename)
 
     print('[+] Read %s rows' % totRows)
-    print('[+] Processed %s rows' % processedRows)
 
     outfile = outfilename(filename)
     print('[+] Writing to %s' % outfile)

@@ -1,4 +1,3 @@
-import random
 import hashlib
 
 
@@ -10,11 +9,12 @@ class HashFunction:
         self.mapping = {}
     
 
-    def hash(self, value):
+    def hash(self, value, store=False):
         result = int(hashlib.md5((self.seed + str(value)).encode()).hexdigest(), 16) % self.nBins
-        if result not in self.mapping:
-            self.mapping[result] = []
-        self.mapping[result].append(value)
+        if store:
+            if result not in self.mapping:
+                self.mapping[result] = []
+            self.mapping[result].append(value)
         return result
 
 

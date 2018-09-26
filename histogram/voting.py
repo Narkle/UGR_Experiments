@@ -210,15 +210,15 @@ class HistogramVoter:
             for col in self.hist_cols
         }
 
-        for _, row in df.iterrows():
-            for col in self.hist_cols:
-                val = row[col]
-                hashers = self.feat_hashers[col]
-                hist_dists = curr_hist_dists[col]
+        value_counts = [df[col].value_counts() for col in self.hist_cols]
 
+        for vc, col in zip(value_counts, self.hist_cols):
+            hashers = self.feat_hashers[col]
+            hist_dists = curr_hist_dists[col]
+            for key, count in vc.iteritems():
                 for hasher, hist_dist in zip(hashers, hist_dists):
-                    b = hasher.hash(val)
-                    hist_dist[b] += 1
+                    b = hasher.hash(key)
+                    hist_dist[b] += count
 
         if not self.first_flag:
             curr_kls = self.bulk_hist_dist_kl(curr_hist_dists, row_mode=True)
