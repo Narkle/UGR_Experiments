@@ -36,7 +36,7 @@ def process(window_start, df):
 
 def readAndProcessCSV(filename):
     global totRows, processedRows, voting, window_start, df_window
-    for df in pd.read_csv(filename, chunksize=200000, iterator=True):
+    for df in pd.read_csv(filename, chunksize=10**8, iterator=True):
         totRows += df.shape[0]
 
         df.columns = cols
@@ -64,8 +64,8 @@ def readAndProcessCSV(filename):
 
 def outfilename(filepath):
     basename = os.path.basename(filepath)
-    *name_wo_ext, _ext = basename.split('.')
-    name_wo_ext = ".".join(name_wo_ext)
+    last_idx = basename.rindex('.')
+    name_wo_ext = basename[:last_idx]
 
     return "%s.kl.csv" % name_wo_ext
 

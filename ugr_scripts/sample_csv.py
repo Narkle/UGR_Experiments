@@ -40,4 +40,4 @@ with open(path) as csvfile:
                 outfile.write(line)
                 nLines += 1
 
-print('[+] Done sampling, wrote %s lines', nLines)
+print('[+] Done sampling, wrote %s lines' % nLines)
