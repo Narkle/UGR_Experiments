@@ -139,7 +139,7 @@ class HistogramVoter:
 
         meta_data = {}
         for prev_kl, prev_hist, curr_hist, hasher in zip(prev_kls, prev_hists, curr_hists, hashers):
-            kl = entropy(prev_hist, curr_hist)
+            kl = entropy(curr_hist, prev_hist)
             kl_delta = kl - prev_kl
             if kl_delta > threshold:
                 kl_goal = kl - threshold
@@ -160,7 +160,7 @@ class HistogramVoter:
             bin_to_reset = cand_bins[curr_idx]
             curr_hist[bin_to_reset] = prev_hist[bin_to_reset]
             curr_idx += 1
-            kl = entropy(prev_hist, curr_hist)
+            kl = entropy(curr_hist, prev_hist)
         values = []
         for b in cand_bins[:curr_idx]:
             for v in hasher.mapping[b]:
@@ -188,12 +188,12 @@ class HistogramVoter:
             for prev, curr in zip(prev_feat_hist, curr_feat_hist):
                 if row_mode:
                     row.append(entropy(
-                        [x if x else 1 for x in prev],
-                        [x if x else 1 for x in curr]))
+                        [x if x else 1 for x in curr],
+                        [x if x else 1 for x in prev]))
                 else:
                     kls[col].append(entropy(
-                        [x if x else 1 for x in prev],
-                        [x if x else 1 for x in curr]))
+                        [x if x else 1 for x in curr],
+                        [x if x else 1 for x in prev]))
         return row if row_mode else kls
 
 
