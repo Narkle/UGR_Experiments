@@ -38,7 +38,8 @@ def readAndProcessCSV(filename, w=15):
     global totRows, processedRows
 
     df_curr, curr_window = None, None
-    for df in pd.read_csv(filename, chunksize=10**8, iterator=True):
+    # erronous lines will be skipped
+    for df in pd.read_csv(filename, chunksize=10**8, iterator=True, error_bad_lines=False):
         df['te'] = pd.to_datetime(df['te']).dt.floor("%dT" % w)
         totRows += df.shape[0]
         grouped = df.groupby(['te'])
