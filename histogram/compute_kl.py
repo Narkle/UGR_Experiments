@@ -13,7 +13,6 @@ from hashing import HashFunction
 
 hist_cols = ['sa', 'da', 'sp', 'dp', 'pkt']
 cols = ["te", "td", "sa", "da",	"sp", "dp",	"pr", "flg", "fwd",	"stos", "pkt", "byt", "type"]
-windowLength = pd.Timedelta("15 minutes")
 output_col = None
 output = []
 
@@ -98,7 +97,7 @@ def process(window_start, df, histogramClones):
         output.append([window_start] + row)
 
 
-def readAndProcessCSV(filename, histogramClones, w=15):
+def readAndProcessCSV(filename, histogramClones, w):
     global totRows, processedRows
 
     df_curr, curr_window = None, None
@@ -128,21 +127,26 @@ def outfilename(filepath):
     return "%s.kl.csv" % name_wo_ext
 
 if __name__ == '__main__':
+    print("[+] Starting Compute KL")
     parser = argparse.ArgumentParser()
     parser.add_argument('f', help='netflow csv file', type=str)
     parser.add_argument('k', help='number of clones', type=int)
     parser.add_argument('m', help='hash function length (2**m)', type=int)
-    parser.add_argument('--D', help='directory to save the output', type=str)
+    parser.add_argument('--W', help='width of time window (default: 15 mins)', type=int)
+    parser.add_argument('--D', help='directory to save the output', type=str) # NOTE: not in use
 
     args = parser.parse_args()
     filename = args.f
     k = args.k
     m = args.m
+    w = args.W if args.W else 15
+
+    print("[+] Time window set to %s minutes" % w)
 
     histogramClones = HistogramClones(m, k)
     output_col = ['time'] + ["%s_%s" % (col, i) for col in hist_cols for i in range(k)]
 
-    readAndProcessCSV(filename, histogramClones)
+    readAndProcessCSV(filename, histogramClones, w)
 
     print('[+] Read %s rows' % totRows)
 
