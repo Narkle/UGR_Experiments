@@ -15,13 +15,14 @@ def readAndProcessCSV(filename, time_windows):
     df_curr, curr_window = None, None
 
     def process(start, df):
+        print(start)
         global df_out
         print('[+] Processing %s' % start)
         if start > time_windows[-1]:
-            return False
+            return True
         if start in time_windows:
             df_out = df_out.append(df)
-        return True
+        return False
 
     # erronous lines will be skipped
     for df in pd.read_csv(filename, chunksize=10**6, iterator=True, error_bad_lines=False):
