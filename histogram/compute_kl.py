@@ -102,7 +102,7 @@ def readAndProcessCSV(filename, histogramClones, w):
 
     df_curr, curr_window = None, None
     # erronous lines will be skipped
-    for df in pd.read_csv(filename, chunksize=10**8, iterator=True, error_bad_lines=False):
+    for df in pd.read_csv(filename, chunksize=10**6, iterator=True, error_bad_lines=False):
         df['te'] = pd.to_datetime(df['te']).dt.floor("%dT" % w)
         totRows += df.shape[0]
         grouped = df.groupby(['te'])
@@ -157,6 +157,6 @@ if __name__ == '__main__':
 
     df_kl = pd.DataFrame(data=output, columns=output_col)
     print(df_kl.head())
-    df_kl.to_csv(outfile)
+    df_kl.to_csv(outfile, index=False)
 
     print('[+] Done')

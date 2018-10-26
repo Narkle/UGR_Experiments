@@ -1,6 +1,5 @@
-"""Compute Entropy for each time window
-TODO: implement sliding window version
-Usage: python compute_entropy.py netflow.csv
+"""Compute number of flows in netflow csv
+Usage: python compute_num_flows.py netflow.csv [time window]
 """
 
 import argparse
@@ -10,35 +9,13 @@ import pandas as pd
 import numpy as np
 from scipy.stats import entropy
 
-hist_cols = ['sa', 'da', 'sp', 'dp', 'pkt']
-cols = ["te", "td", "sa", "da",	"sp", "dp",	"pr", "flg", "fwd",	"stos", "pkt", "byt", "type"]
-output_col = None
-output = []
-
-df_window = pd.DataFrame(columns=cols)
-
-totRows = 0
-
-
 def process(window_start, df):
-    """computes KL divergence for given df representing current time window, if first window
-    return NONE
-    Arguments:
-        window_start {Datetime}
-        df {DateFrame}
-    Returns:
-        False if window_start exceeds specified end time, True otherwise
-    """
-    if endtime and window_start >= endtime:
-        print("[+] Hit end of analysis time, quitting")
-        return False
 
     print("[+] Processing window %s with %d rows" % (window_start, df.shape[0]))
-    value_counts = [df[col].value_counts() for col in hist_cols]
-    row = [entropy(vc.values) for vc in value_counts]
-    if row:
-        output.append([window_start] + row)
-    return True
+
+    vc = df['type'].value_counts()
+    row = [window_start] + [vc[c] if c in vc else 0 for c in flow_types]
+    output.append(row)
 
 def readAndProcessCSV(filename, w):
     global totRows, processedRows
@@ -57,10 +34,8 @@ def readAndProcessCSV(filename, w):
             if window == curr_window:
                 df_curr = df_curr.append(df)
             else:
-                to_cont = process(curr_window, df_curr)
+                process(curr_window, df_curr)
                 df_curr, curr_window = df, window
-                if not to_cont:
-                    break
 
     process(curr_window, df_curr)
 
@@ -70,23 +45,25 @@ def outfilename(filepath):
     last_idx = basename.rindex('.')
     name_wo_ext = basename[:last_idx]
 
-    return "%s.entropy.csv" % name_wo_ext
+    return "%s.counts.csv" % name_wo_ext
+
+
+flow_types = ['background', 'anomaly-udpscan', 'anomaly-sshscan', 'Dos', 'scan11', 'scan44', 
+           'nerisbotnet', 'anomaly-spam']
+output = []
+totRows = 0
 
 if __name__ == '__main__':
     print("[+] Starting Compute Entropy")
     parser = argparse.ArgumentParser()
     parser.add_argument('f', help='netflow csv file', type=str)
     parser.add_argument('--W', help='width of time window (default: 15 mins)', type=int)
-    parser.add_argument('--E', help='end time of analysis', type=str)
 
     args = parser.parse_args()
     filename = args.f
     w = args.W if args.W else 15
-    endtime = pd.to_datetime(args.E) if args.E else None
 
     print("[+] Time window set to %s minutes" % w)
-
-    output_col = ['time'] + hist_cols
 
     readAndProcessCSV(filename, w)
 
@@ -95,8 +72,8 @@ if __name__ == '__main__':
     outfile = outfilename(filename)
     print('[+] Writing to %s' % outfile)
 
-    df_kl = pd.DataFrame(data=output, columns=output_col)
-    print(df_kl.head())
-    df_kl.to_csv(outfile, index=False)
+    df_counts = pd.DataFrame(data=output, columns=['time'] + flow_types)
+    print(df_counts.head())
+    df_counts.to_csv(outfile, index=False)
 
     print('[+] Done')
