@@ -10,11 +10,16 @@ class HashFunction:
     
 
     def hash(self, value, store=False):
-        result = int(hashlib.md5((self.seed + str(value)).encode()).hexdigest(), 16) % self.nBins
+        # hash_func = hashlib.md5
+        hash_func = hashlib.sha224
+        result = int(hash_func((self.seed + str(value)).encode()).hexdigest(), 16) % self.nBins
         if store:
             if result not in self.mapping:
                 self.mapping[result] = []
             self.mapping[result].append(value)
         return result
+
+    def reset_mapping(self):
+        self.mapping = {}
 
 
